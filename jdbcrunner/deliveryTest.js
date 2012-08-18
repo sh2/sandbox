@@ -32,6 +32,8 @@ var logDir = "logs";
 
 // Application settings ----------------------------------------------
 
+var SCALE = 10;
+
 // JdbcRunner functions ----------------------------------------------
 
 function init() {
@@ -50,7 +52,7 @@ function init() {
         var no_d_id = new Array();
         var no_w_id = new Array();
         
-        for (var warehouseId = 1; warehouseId <= 1; warehouseId++) {
+        for (var warehouseId = 1; warehouseId <= SCALE; warehouseId++) {
             info("warehouse : " + warehouseId);
             
             for (var districtId = 1; districtId <= 10; districtId++) {
@@ -76,7 +78,11 @@ function init() {
 }
 
 function run() {
-    // oldDelivery();
+    takeConnection().setTransactionIsolation(java.sql.Connection.TRANSACTION_READ_COMMITTED);
+    // takeConnection().setTransactionIsolation(java.sql.Connection.TRANSACTION_REPEATABLE_READ);
+    // takeConnection().setTransactionIsolation(java.sql.Connection.TRANSACTION_SERIALIZABLE);
+    
+    oldDelivery();
     // newDelivery();
 }
 
@@ -89,7 +95,8 @@ function fin() {
 // Application functions ---------------------------------------------
 
 function oldDelivery() {
-    var w_id = random(1, 10);
+    var doPrint = true;
+    var w_id = random(1, SCALE);
     
     for (var d_id = 1; d_id <= 10; d_id++) {
         var rs01 = fetchAsArray("SELECT /* D-01 */ n1.no_o_id "
@@ -104,10 +111,11 @@ function oldDelivery() {
                        w_id, d_id, w_id, d_id);
         
         if (rs01.length == 0) {
-            // If no matching row is found,
-            // then the delivery of an order for this district is skipped.
-            warn("[Agent " + getId() + "] warehouse : " + w_id + ", district : " + d_id);
+            info("[Agent " + getId() + "] SKIPPED , w : " + w_id + ", d : " + d_id);
             continue;
+        } else if (doPrint) {
+            info("[Agent " + getId() + "] LOCKED  , w : " + w_id + ", d : " + d_id + ", o_id : " + rs01[0][0]);
+            doPrint = false;
         }
         
         var uc02 = execute("DELETE /* D-02 */ "
@@ -117,10 +125,11 @@ function oldDelivery() {
     }
     
     commit();
+    info("[Agent " + getId() + "] RELEASED, w : " + w_id);
 }
 
 function newDelivery() {
-    var w_id = random(1, 10);
+    var w_id = random(1, SCALE);
     
     for (var d_id = 1; d_id <= 10; d_id++) {
         var rs01 = fetchAsArray("SELECT /* D-01 */ MIN(no_o_id) "
@@ -143,7 +152,7 @@ function newDelivery() {
             rollback();
         }
         
-        // TODO write from here
+        // TODO こっちはまだできてない
     }
     
     commit();
