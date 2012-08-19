@@ -5,7 +5,7 @@
 // JdbcRunner settings -----------------------------------------------
 
 // Oracle Database
-// var jdbcUrl = "jdbc:oracle:thin://@localhost:1521/ORCL";
+// var jdbcUrl = "jdbc:oracle:thin://@k02c5:1521/ora11a";
 
 // MySQL
 var jdbcUrl = "jdbc:mysql://localhost:3306/jdbcrunner?rewriteBatchedStatements=true";
@@ -39,7 +39,13 @@ var SCALE = 10;
 function init() {
     if (getId() == 0) {
         // This block is performed only by Agent 0.
-        execute("DROP TABLE IF EXISTS new_orders");
+        // execute("DROP TABLE IF EXISTS new_orders");
+        
+        try {
+            execute("DROP TABLE new_orders");
+        } catch (e) {
+            warn(e);
+        }
         
         execute("CREATE TABLE new_orders ("
             + "no_o_id INT, "
@@ -47,6 +53,14 @@ function init() {
             + "no_w_id INT, "
             + "PRIMARY KEY (no_w_id, no_d_id, no_o_id)) "
             + "ENGINE = InnoDB");
+        
+        /*
+        execute("CREATE TABLE new_orders ("
+            + "no_o_id NUMBER, "
+            + "no_d_id NUMBER, "
+            + "no_w_id NUMBER, "
+            + "PRIMARY KEY (no_w_id, no_d_id, no_o_id))");
+        */
         
         var no_o_id = new Array();
         var no_d_id = new Array();
@@ -114,7 +128,7 @@ function oldDelivery() {
             info("[Agent " + getId() + "] SKIPPED , w : " + w_id + ", d : " + d_id);
             continue;
         } else if (doPrint) {
-            info("[Agent " + getId() + "] LOCKED  , w : " + w_id + ", d : " + d_id + ", o_id : " + rs01[0][0]);
+            debug("[Agent " + getId() + "] LOCKED  , w : " + w_id + ", d : " + d_id + ", o_id : " + rs01[0][0]);
             doPrint = false;
         }
         
@@ -122,10 +136,17 @@ function oldDelivery() {
                        + "FROM new_orders "
                        + "WHERE no_w_id = $int AND no_d_id = $int AND no_o_id = $int",
                        w_id, d_id, rs01[0][0]);
+        
+        var o_id = Number(rs01[0][0]) + 900;
+        
+        var uc03 = execute("INSERT INTO new_orders "
+                       + "(no_o_id, no_d_id, no_w_id) "
+                       + "VALUES ($int, $int, $int)",
+                       o_id, d_id, w_id);
     }
     
     commit();
-    info("[Agent " + getId() + "] RELEASED, w : " + w_id);
+    debug("[Agent " + getId() + "] RELEASED, w : " + w_id);
 }
 
 function newDelivery() {
@@ -138,7 +159,7 @@ function newDelivery() {
                     w_id, d_id);
                     
         if (rs01[0][0] == null) {
-            warn("[Agent " + getId() + "] NOT FOUND, warehouse : " + w_id + ", district : " + d_id);
+            info("[Agent " + getId() + "] NOT FOUND, warehouse : " + w_id + ", district : " + d_id);
             continue;
         }
         
@@ -148,7 +169,7 @@ function newDelivery() {
                        w_id, d_id, rs01[0][0]);
         
         if (uc02 == 0) {
-            warn("[Agent " + getId() + "] CAN'T LOCK, warehouse : " + w_id + ", district : " + d_id);
+            info("[Agent " + getId() + "] CAN'T LOCK, warehouse : " + w_id + ", district : " + d_id);
             rollback();
         }
         
