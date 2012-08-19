@@ -11,7 +11,7 @@
 var jdbcUrl = "jdbc:mysql://localhost:3306/jdbcrunner?rewriteBatchedStatements=true";
 
 // PostgreSQL
-// var jdbcUrl = "jdbc:postgresql://localhost:5432/postgres";
+// var jdbcUrl = "jdbc:postgresql://k01sl6:5432/jdbcrunner";
 
 var jdbcDriver = "";
 var jdbcUser = "jdbcrunner";
@@ -39,16 +39,30 @@ var SCALE = 10;
 function init() {
     if (getId() == 0) {
         // This block is performed only by Agent 0.
-        execute("DROP TABLE IF EXISTS new_orders");
         
+        // Oracle Database
         /*
         try {
             execute("DROP TABLE new_orders");
         } catch (e) {
             warn(e);
+            rollback();
         }
         */
         
+        // MySQL, PostgreSQL
+        execute("DROP TABLE IF EXISTS new_orders");
+        
+        // Oracle Database
+        /*
+        execute("CREATE TABLE new_orders ("
+            + "no_o_id NUMBER, "
+            + "no_d_id NUMBER, "
+            + "no_w_id NUMBER, "
+            + "PRIMARY KEY (no_w_id, no_d_id, no_o_id))");
+        */
+        
+        // MySQL
         execute("CREATE TABLE new_orders ("
             + "no_o_id INT, "
             + "no_d_id INT, "
@@ -56,11 +70,12 @@ function init() {
             + "PRIMARY KEY (no_w_id, no_d_id, no_o_id)) "
             + "ENGINE = InnoDB");
         
+        // PostgreSQL
         /*
         execute("CREATE TABLE new_orders ("
-            + "no_o_id NUMBER, "
-            + "no_d_id NUMBER, "
-            + "no_w_id NUMBER, "
+            + "no_o_id INT, "
+            + "no_d_id INT, "
+            + "no_w_id INT, "
             + "PRIMARY KEY (no_w_id, no_d_id, no_o_id))");
         */
         
@@ -94,8 +109,8 @@ function init() {
 }
 
 function run() {
-    // takeConnection().setTransactionIsolation(java.sql.Connection.TRANSACTION_READ_COMMITTED);
-    takeConnection().setTransactionIsolation(java.sql.Connection.TRANSACTION_REPEATABLE_READ);
+    takeConnection().setTransactionIsolation(java.sql.Connection.TRANSACTION_READ_COMMITTED);
+    // takeConnection().setTransactionIsolation(java.sql.Connection.TRANSACTION_REPEATABLE_READ);
     // takeConnection().setTransactionIsolation(java.sql.Connection.TRANSACTION_SERIALIZABLE);
     
     // oldDelivery();
