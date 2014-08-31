@@ -24,7 +24,7 @@ public class Lock {
 	private final String jdbcUrl;
 	private final String jdbcUser;
 	private final String jdbcPass;
-	private final long sleepTime;
+	private final int sleepTime;
 	private final int queryTimeout;
 
 	private List<Command> commands = new ArrayList<>();
@@ -52,7 +52,7 @@ public class Lock {
 			this.jdbcUrl = property.getProperty("jdbc_url");
 			this.jdbcUser = property.getProperty("jdbc_user");
 			this.jdbcPass = property.getProperty("jdbc_pass");
-			this.sleepTime = Long.parseLong(property.getProperty("sleep_time"));
+			this.sleepTime = Integer.parseInt(property.getProperty("sleep_time"));
 			this.queryTimeout = Integer.parseInt(property.getProperty("query_timeout"));
 		} catch (IOException | NumberFormatException e) {
 			throw new ApplicationException(e);
@@ -98,7 +98,7 @@ public class Lock {
 					worker.putCommand(command);
 				}
 
-				Thread.sleep(sleepTime);
+				Thread.sleep(1000L * sleepTime);
 			}
 		} catch (SQLException | InterruptedException e) {
 			throw new ApplicationException(e);

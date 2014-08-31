@@ -1,5 +1,5 @@
 jdbc_url      = jdbc:mysql://k01sl6/scott
 jdbc_user     = scott
 jdbc_pass     = tiger
-sleep_time    = 100
+sleep_time    = 1
 query_timeout = 10
