@@ -30,6 +30,8 @@ public class Lock {
 	private List<Command> commands = new ArrayList<>();
 
 	public static void main(String[] args) {
+		System.out.println("Lock Inspector");
+
 		if (args.length != 2) {
 			System.out.println("usage: Java jdbc.Lock <property> <script>");
 			System.exit(1);
