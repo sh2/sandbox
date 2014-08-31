@@ -12,6 +12,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
@@ -20,23 +21,22 @@ public class Lock {
 		SERIALIZABLE, REPEATABLE_READ, READ_COMMITTED, QUERY, UPDATE, COMMIT, ROLLBACK, SLEEP, EXIT
 	}
 
-	public static final String JDBC_USER = "scott";
-	public static final String JDBC_PASS = "tiger";
-	public static final long SLEEP_TIME = 2000L;
-	public static final int QUERY_TIMEOUT = 10;
+	private final String jdbcUrl;
+	private final String jdbcUser;
+	private final String jdbcPass;
+	private final long sleepTime;
+	private final int queryTimeout;
 
-	private String jdbcUrl;
 	private List<Command> commands = new ArrayList<>();
 
 	public static void main(String[] args) {
 		if (args.length != 2) {
-			System.out.println("usage: Java jdbc.Lock <jdbc_url> <script>");
+			System.out.println("usage: Java jdbc.Lock <property> <script>");
 			System.exit(1);
 		}
 
-		Lock lock = new Lock(args[0]);
-
 		try {
+			Lock lock = new Lock(args[0]);
 			lock.readScript(args[1]);
 			lock.test();
 		} catch (ApplicationException e) {
@@ -44,12 +44,23 @@ public class Lock {
 		}
 	}
 
-	public Lock(String jdbcUrl) {
-		this.jdbcUrl = jdbcUrl;
+	public Lock(String filename) throws ApplicationException {
+		Properties property = new Properties();
+
+		try (BufferedReader reader = new BufferedReader(new FileReader(filename))) {
+			property.load(reader);
+			this.jdbcUrl = property.getProperty("jdbc_url");
+			this.jdbcUser = property.getProperty("jdbc_user");
+			this.jdbcPass = property.getProperty("jdbc_pass");
+			this.sleepTime = Long.parseLong(property.getProperty("sleep_time"));
+			this.queryTimeout = Integer.parseInt(property.getProperty("query_timeout"));
+		} catch (IOException | NumberFormatException e) {
+			throw new ApplicationException(e);
+		}
 	}
 
 	private void readScript(String filename) throws ApplicationException {
-		try (BufferedReader reader = new BufferedReader(new FileReader(filename));) {
+		try (BufferedReader reader = new BufferedReader(new FileReader(filename))) {
 			String commandLine = null;
 
 			while ((commandLine = reader.readLine()) != null) {
@@ -87,7 +98,7 @@ public class Lock {
 					worker.putCommand(command);
 				}
 
-				Thread.sleep(SLEEP_TIME);
+				Thread.sleep(sleepTime);
 			}
 		} catch (SQLException | InterruptedException e) {
 			throw new ApplicationException(e);
@@ -252,8 +263,7 @@ public class Lock {
 
 		@Override
 		public void run() {
-			try (Connection connection = DriverManager
-					.getConnection(jdbcUrl, JDBC_USER, JDBC_PASS)) {
+			try (Connection connection = DriverManager.getConnection(jdbcUrl, jdbcUser, jdbcPass)) {
 				connection.setAutoCommit(false);
 
 				WORKER: while (true) {
@@ -302,7 +312,7 @@ public class Lock {
 				}
 			} catch (SQLException e) {
 				System.out.println("(" + workerId + ":" + e + ")");
-				System.out.println(workerId + ":" + CommandType.EXIT);
+				System.out.println(workerId + ":ABORT");
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
@@ -310,7 +320,7 @@ public class Lock {
 
 		private void executeQuery(Connection connection, String query) throws SQLException {
 			try (Statement statement = connection.createStatement()) {
-				statement.setQueryTimeout(QUERY_TIMEOUT);
+				statement.setQueryTimeout(queryTimeout);
 
 				try (ResultSet resultSet = statement.executeQuery(query)) {
 					int nColumns = resultSet.getMetaData().getColumnCount();
@@ -338,7 +348,7 @@ public class Lock {
 
 		private int executeUpdate(Connection connection, String query) throws SQLException {
 			try (Statement statement = connection.createStatement()) {
-				statement.setQueryTimeout(QUERY_TIMEOUT);
+				statement.setQueryTimeout(queryTimeout);
 				return statement.executeUpdate(query);
 			}
 		}
