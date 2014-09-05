@@ -26,6 +26,7 @@ public class Lock {
 	private final String jdbcPass;
 	private final int sleepTime;
 	private final int queryTimeout;
+	private final BlockingQueue<String> messageQueue = new LinkedBlockingQueue<>();
 
 	private List<Command> commands = new ArrayList<>();
 
@@ -79,11 +80,13 @@ public class Lock {
 
 	private void test() throws ApplicationException {
 		Map<Integer, Worker> workers = new HashMap<>();
+		Logger logger = new Logger();
+		logger.start();
 
 		try {
 			for (Command command : commands) {
 				if (command.getCommandType() == CommandType.SLEEP) {
-					System.out.println(command);
+					messageQueue.put(command.toString());
 					Thread.sleep(1000L * command.getSleepTime());
 					System.out.println("(" + command.getWorkerId() + ":" + command.getCommandType()
 							+ ")");
@@ -352,6 +355,43 @@ public class Lock {
 			try (Statement statement = connection.createStatement()) {
 				statement.setQueryTimeout(queryTimeout);
 				return statement.executeUpdate(query);
+			}
+		}
+	}
+
+	private class Logger implements Runnable {
+		private Thread thread;
+
+		public void start() {
+			if (thread == null) {
+				thread = new Thread(this);
+				thread.start();
+			}
+		}
+
+		public void stop() {
+			thread.interrupt();
+
+			while (true) {
+				String message = messageQueue.poll();
+
+				if (message == null) {
+					break;
+				} else {
+					System.out.println(message);
+				}
+			}
+		}
+
+		@Override
+		public void run() {
+			while (true) {
+				try {
+					String message = messageQueue.take();
+					System.out.println(message);
+				} catch (InterruptedException e) {
+					break;
+				}
 			}
 		}
 	}
