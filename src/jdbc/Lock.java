@@ -86,9 +86,9 @@ public class Lock {
 		try {
 			for (Command command : commands) {
 				if (command.getCommandType() == CommandType.SLEEP) {
-					messageQueue.put(command.toString());
+					messageQueue.offer(command.toString());
 					Thread.sleep(1000L * command.getSleepTime());
-					System.out.println("(" + command.getWorkerId() + ":" + command.getCommandType()
+					messageQueue.offer("(" + command.getWorkerId() + ":" + command.getCommandType()
 							+ ")");
 				} else {
 					int workerId = command.getWorkerId();
@@ -119,6 +119,8 @@ public class Lock {
 			for (Worker worker : workers.values()) {
 				worker.join();
 			}
+
+			logger.stop();
 		}
 	}
 
@@ -273,7 +275,7 @@ public class Lock {
 
 				WORKER: while (true) {
 					Command command = commandQueue.take();
-					System.out.println(command);
+					messageQueue.offer(command.toString());
 
 					switch (command.getCommandType()) {
 					case SERIALIZABLE:
@@ -289,7 +291,7 @@ public class Lock {
 						try {
 							executeQuery(connection, command.getQuery());
 						} finally {
-							System.out.println("(" + command.getWorkerId() + ":"
+							messageQueue.offer("(" + command.getWorkerId() + ":"
 									+ command.getCommandType() + ")");
 						}
 
@@ -300,7 +302,7 @@ public class Lock {
 						try {
 							count = executeUpdate(connection, command.getQuery());
 						} finally {
-							System.out.println("(" + command.getWorkerId() + ":"
+							messageQueue.offer("(" + command.getWorkerId() + ":"
 									+ command.getCommandType() + ":COUNT=" + count + ")");
 						}
 
@@ -316,8 +318,8 @@ public class Lock {
 					}
 				}
 			} catch (SQLException e) {
-				System.out.println("(" + workerId + ":" + e + ")");
-				System.out.println(workerId + ":ABORT");
+				messageQueue.offer("(" + workerId + ":" + e + ")");
+				messageQueue.offer(workerId + ":ABORT");
 			} catch (InterruptedException e) {
 				e.printStackTrace();
 			}
@@ -328,24 +330,28 @@ public class Lock {
 				statement.setQueryTimeout(queryTimeout);
 
 				try (ResultSet resultSet = statement.executeQuery(query)) {
+					StringBuilder buffer = new StringBuilder();
 					int nColumns = resultSet.getMetaData().getColumnCount();
-					System.out.print("(");
+					buffer.append("(");
 
 					for (int columnIndex = 1; columnIndex <= nColumns; columnIndex++) {
-						System.out.printf("%-10s ",
-								resultSet.getMetaData().getColumnName(columnIndex));
+						buffer.append(String.format("%-10s ", resultSet.getMetaData()
+								.getColumnName(columnIndex)));
 					}
 
-					System.out.println(")");
+					buffer.append(")");
+					messageQueue.offer(buffer.toString());
 
 					while (resultSet.next()) {
-						System.out.print("(");
+						buffer.setLength(0);
+						buffer.append("(");
 
 						for (int columnIndex = 1; columnIndex <= nColumns; columnIndex++) {
-							System.out.printf("%-10s ", resultSet.getObject(columnIndex));
+							buffer.append(String.format("%-10s ", resultSet.getObject(columnIndex)));
 						}
 
-						System.out.println(")");
+						buffer.append(")");
+						messageQueue.offer(buffer.toString());
 					}
 				}
 			}
