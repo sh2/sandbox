@@ -317,7 +317,7 @@ public class Lock {
 			if (commandType == CommandType.QUERY || commandType == CommandType.UPDATE) {
 				return workerId + ":" + commandType + ":" + query;
 			} else if (commandType == CommandType.SLEEP) {
-				return workerId + ":" + commandType + ":" + sleepTime;
+				return commandType + ":" + sleepTime;
 			} else {
 				return workerId + ":" + commandType;
 			}
