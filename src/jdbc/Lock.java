@@ -16,7 +16,17 @@ import java.util.Properties;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
+/**
+ * スクリプトを読み込んで複数のワーカからコマンドを逐次発行するクラスです 。
+ *
+ * @author Sadao Hiratsuka
+ */
 public class Lock {
+	/**
+	 * コマンド種別です。
+	 *
+	 * @author Sadao Hiratsuka
+	 */
 	public static enum CommandType {
 		SERIALIZABLE, REPEATABLE_READ, READ_COMMITTED, QUERY, UPDATE, COMMIT, ROLLBACK, SLEEP, EXIT
 	}
@@ -30,6 +40,12 @@ public class Lock {
 
 	private List<Command> commands = new ArrayList<>();
 
+	/**
+	 * アプリケーションの起動用メソッドです。
+	 *
+	 * @param args
+	 *            コマンドラインオプション
+	 */
 	public static void main(String[] args) {
 		System.out.println("Lock Inspector");
 
@@ -47,6 +63,14 @@ public class Lock {
 		}
 	}
 
+	/**
+	 * プロパティファイルを指定してインスタンスを構築します。
+	 *
+	 * @param filename
+	 *            プロパティのファイル名
+	 * @throws ApplicationException
+	 *             プロパティファイルの読み取りに失敗した場合
+	 */
 	public Lock(String filename) throws ApplicationException {
 		Properties property = new Properties();
 
@@ -62,7 +86,15 @@ public class Lock {
 		}
 	}
 
-	private void readScript(String filename) throws ApplicationException {
+	/**
+	 * スクリプトファイルを読み込みます。
+	 *
+	 * @param filename
+	 *            スクリプトのファイル名
+	 * @throws ApplicationException
+	 *             スクリプトファイルの読み取りに失敗した場合
+	 */
+	public void readScript(String filename) throws ApplicationException {
 		try (BufferedReader reader = new BufferedReader(new FileReader(filename))) {
 			String commandLine = null;
 
@@ -78,7 +110,13 @@ public class Lock {
 		}
 	}
 
-	private void test() throws ApplicationException {
+	/**
+	 * スクリプトを実行します。
+	 *
+	 * @throws ApplicationException
+	 *             スクリプトの実行に失敗した場合
+	 */
+	public void test() throws ApplicationException {
 		Map<Integer, Worker> workers = new HashMap<>();
 		Logger logger = new Logger();
 		logger.start();
@@ -105,7 +143,7 @@ public class Lock {
 
 				Thread.sleep(1000L * sleepTime);
 			}
-		} catch (SQLException | InterruptedException e) {
+		} catch (InterruptedException e) {
 			throw new ApplicationException(e);
 		} finally {
 			for (Worker worker : workers.values()) {
@@ -124,64 +162,103 @@ public class Lock {
 		}
 	}
 
+	/**
+	 * アプリケーション独自の例外クラスです。
+	 *
+	 * @author Sadao Hiratsuka
+	 */
 	private class ApplicationException extends Exception {
 		private static final long serialVersionUID = 1L;
 
+		/**
+		 * メッセージを指定して例外を構築します。
+		 *
+		 * @param message
+		 *            メッセージ
+		 */
 		public ApplicationException(String message) {
 			super(message);
 		}
 
+		/**
+		 * 原因を指定して例外を構築します。
+		 *
+		 * @param cause
+		 *            原因
+		 */
 		public ApplicationException(Throwable cause) {
 			super(cause);
 		}
 
+		/**
+		 * メッセージと原因を指定して例外を構築します。
+		 *
+		 * @param message
+		 *            メッセージ
+		 * @param cause
+		 *            原因
+		 */
 		public ApplicationException(String message, Throwable cause) {
 			super(message, cause);
 		}
 	}
 
+	/**
+	 * ワーカが実行するコマンドです。
+	 *
+	 * @author Sadao Hiratsuka
+	 */
 	private class Command {
 		private int workerId;
 		private CommandType commandType;
 		private final String query;
 		private final int sleepTime;
 
+		/**
+		 * コマンド文字列を指定してコマンドを構築します。
+		 *
+		 * @param commandLine
+		 *            コマンド文字列
+		 * @throws ApplicationException
+		 *             コマンド文字列に誤りがある場合
+		 */
 		public Command(String commandLine) throws ApplicationException {
 			String[] columns = commandLine.split(":");
 
 			try {
-				this.workerId = Integer.parseInt(columns[0]);
-
-				switch (columns[1]) {
-				case "SR":
-					this.commandType = CommandType.SERIALIZABLE;
-					break;
-				case "RR":
-					this.commandType = CommandType.REPEATABLE_READ;
-					break;
-				case "RC":
-					this.commandType = CommandType.READ_COMMITTED;
-					break;
-				case "Q":
-					this.commandType = CommandType.QUERY;
-					break;
-				case "U":
-					this.commandType = CommandType.UPDATE;
-					break;
-				case "C":
-					this.commandType = CommandType.COMMIT;
-					break;
-				case "R":
-					this.commandType = CommandType.ROLLBACK;
-					break;
-				case "S":
+				if (columns[0].equals("S")) {
 					this.commandType = CommandType.SLEEP;
-					break;
-				case "E":
-					this.commandType = CommandType.EXIT;
-					break;
-				default:
-					throw new ApplicationException("Invalid CommandType: " + commandLine);
+				} else {
+					this.workerId = Integer.parseInt(columns[0]);
+
+					switch (columns[1]) {
+					case "SR":
+						this.commandType = CommandType.SERIALIZABLE;
+						break;
+					case "RR":
+						this.commandType = CommandType.REPEATABLE_READ;
+						break;
+					case "RC":
+						this.commandType = CommandType.READ_COMMITTED;
+						break;
+					case "Q":
+						this.commandType = CommandType.QUERY;
+						break;
+					case "U":
+						this.commandType = CommandType.UPDATE;
+						break;
+					case "C":
+						this.commandType = CommandType.COMMIT;
+						break;
+					case "R":
+						this.commandType = CommandType.ROLLBACK;
+						break;
+					case "E":
+						this.commandType = CommandType.EXIT;
+						break;
+					default:
+						throw new ApplicationException("Invalid CommandType: " + commandLine);
+					}
 				}
 
 				if (commandType == CommandType.QUERY || commandType == CommandType.UPDATE) {
@@ -189,7 +266,7 @@ public class Lock {
 					this.sleepTime = 0;
 				} else if (commandType == CommandType.SLEEP) {
 					this.query = "";
-					this.sleepTime = Integer.parseInt(columns[2]);
+					this.sleepTime = Integer.parseInt(columns[1]);
 				} else {
 					this.query = "";
 					this.sleepTime = 0;
@@ -199,18 +276,38 @@ public class Lock {
 			}
 		}
 
+		/**
+		 * コマンドを実行するワーカIDを返します。
+		 *
+		 * @return ワーカID
+		 */
 		public int getWorkerId() {
 			return workerId;
 		}
 
+		/**
+		 * コマンド種別を返します。
+		 *
+		 * @return コマンド種別
+		 */
 		public CommandType getCommandType() {
 			return commandType;
 		}
 
+		/**
+		 * クエリ文字列を返します。
+		 *
+		 * @return クエリ文字列
+		 */
 		public String getQuery() {
 			return query;
 		}
 
+		/**
+		 * スリープ時間(秒)を返します。
+		 *
+		 * @return スリープ時間(秒)
+		 */
 		public int getSleepTime() {
 			return sleepTime;
 		}
@@ -227,16 +324,30 @@ public class Lock {
 		}
 	}
 
+	/**
+	 * コマンドを実行するワーカです。
+	 *
+	 * @author Sadao Hiratsuka
+	 */
 	private class Worker implements Runnable {
 		private final int workerId;
 		private final BlockingQueue<Command> commandQueue = new LinkedBlockingQueue<Command>();
 
 		private volatile Thread thread;
 
-		public Worker(int workerId) throws SQLException {
+		/**
+		 * ワーカIDを指定してワーカを構築します。
+		 *
+		 * @param workerId
+		 *            ワーカID
+		 */
+		public Worker(int workerId) {
 			this.workerId = workerId;
 		}
 
+		/**
+		 * ワーカスレッドを起動します。
+		 */
 		public void start() {
 			if (thread == null) {
 				this.thread = new Thread(this, "worker" + Integer.toString(workerId));
@@ -244,6 +355,9 @@ public class Lock {
 			}
 		}
 
+		/**
+		 * ワーカスレッドの終了を待ちます。
+		 */
 		public void join() {
 			if (thread != null) {
 				do {
@@ -256,6 +370,12 @@ public class Lock {
 			}
 		}
 
+		/**
+		 * ワーカにコマンドを送信します。
+		 *
+		 * @param command
+		 *            コマンド
+		 */
 		public void putCommand(Command command) {
 			try {
 				commandQueue.put(command);
@@ -264,10 +384,18 @@ public class Lock {
 			}
 		}
 
+		/**
+		 * ワーカIDを返します。
+		 *
+		 * @return ワーカID
+		 */
 		public int getWorkerId() {
 			return workerId;
 		}
 
+		/**
+		 * コマンドを実行します。
+		 */
 		@Override
 		public void run() {
 			try (Connection connection = DriverManager.getConnection(jdbcUrl, jdbcUser, jdbcPass)) {
@@ -365,9 +493,17 @@ public class Lock {
 		}
 	}
 
+	/**
+	 * ログを出力するクラスです。
+	 *
+	 * @author Sadao Hiratsuka
+	 */
 	private class Logger implements Runnable {
 		private Thread thread;
 
+		/**
+		 * ログを出力するためのスレッドを起動します。
+		 */
 		public void start() {
 			if (thread == null) {
 				thread = new Thread(this);
@@ -375,8 +511,13 @@ public class Lock {
 			}
 		}
 
+		/**
+		 * ログを出力するためのスレッドを停止します。
+		 */
 		public void stop() {
-			thread.interrupt();
+			if (thread != null) {
+				thread.interrupt();
+			}
 
 			while (true) {
 				String message = messageQueue.poll();
@@ -389,6 +530,9 @@ public class Lock {
 			}
 		}
 
+		/**
+		 * ログを出力します。
+		 */
 		@Override
 		public void run() {
 			while (true) {
