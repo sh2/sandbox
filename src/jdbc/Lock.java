@@ -126,8 +126,7 @@ public class Lock {
 				if (command.getCommandType() == CommandType.SLEEP) {
 					messageQueue.offer(command.toString());
 					Thread.sleep(1000L * command.getSleepTime());
-					messageQueue.offer("(" + command.getWorkerId() + ":" + command.getCommandType()
-							+ ")");
+					messageQueue.offer("(" + command.getCommandType() + ")");
 				} else {
 					int workerId = command.getWorkerId();
 
