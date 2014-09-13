@@ -47,7 +47,7 @@ public class Lock {
 	 *            コマンドラインオプション
 	 */
 	public static void main(String[] args) {
-		System.out.println("Lock Inspector");
+		System.out.println("Lock Inspector 1.0");
 
 		if (args.length != 2) {
 			System.out.println("usage: Java jdbc.Lock <property> <script>");
